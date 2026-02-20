@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIPHER_SYS v4.0 // Alfabeto variable</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="scanlines" aria-hidden="true"></div>
+    <canvas id="matrix-bg" aria-hidden="true"></canvas>
+
+    <main class="terminal">
+
+        <header class="terminal__header">
+            <div class="terminal__dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="terminal__title-bar">
+                <span class="blink" aria-hidden="true">▮</span>
+                CIPHER_SYS v4.0 // CLASSIFIED
+                <span class="blink" aria-hidden="true">▮</span>
+            </div>
+            <div class="terminal__status" aria-hidden="true">● ONLINE</div>
+        </header>
+
+        <div class="terminal__body">
+
+            <div class="boot-log" aria-hidden="true">
+                <p><span class="prompt">SYS&gt;</span> Alfabeto de extensión variable + chars especiales<span class="ok"> [OK]</span></p>
+                <p><span class="prompt">SYS&gt;</span> Motor de detección automática (Al-Kindi)<span class="ok"> [OK]</span></p>
+            </div>
+
+            <!-- 01 TEXTO -->
+            <div class="field">
+                <label class="field__label" for="texto">
+                    <span class="prompt">01&gt;</span> TEXTO DE ENTRADA
+                </label>
+                <input class="field__input" type="text" id="texto" name="texto"
+                    placeholder="Ingresa el mensaje a procesar…"
+                    autocomplete="off" spellcheck="false">
+            </div>
+
+            <!-- 02 + 03 ALGORITMO + DESPLAZAMIENTO -->
+            <div class="field-row">
+                <div class="field">
+                    <label class="field__label" for="cifrado">
+                        <span class="prompt">02&gt;</span> ALGORITMO
+                    </label>
+                    <div class="select-wrap">
+                        <select class="field__input field__select" id="cifrado">
+                            <option value="cesar">[ CÉSAR ]</option>
+                            <option value="atbash">[ ATBASH ]</option>
+                        </select>
+                        <span class="select-arrow" aria-hidden="true">▼</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field__label" for="desplazamiento">
+                        <span class="prompt">03&gt;</span> DESPLAZAMIENTO
+                    </label>
+                    <input class="field__input" type="number" id="desplazamiento"
+                        name="desplazamiento" min="1" placeholder="N">
+                </div>
+            </div>
+
+            <!-- 04 MODO -->
+            <div class="field">
+                <p class="field__label">
+                    <span class="prompt">04&gt;</span> MODO DE OPERACIÓN
+                </p>
+                <div class="toggle-row three">
+                    <label class="toggle-btn">
+                        <input type="radio" name="accion-toggle" value="cifrar" checked>
+                        <span class="toggle-btn__face">🔒 CIFRAR</span>
+                    </label>
+                    <label class="toggle-btn">
+                        <input type="radio" name="accion-toggle" value="descifrar">
+                        <span class="toggle-btn__face">🔓 DESCIFRAR</span>
+                    </label>
+                    <label class="toggle-btn">
+                        <input type="radio" name="accion-toggle" value="auto">
+                        <span class="toggle-btn__face">🧠 AUTO-DETECTAR</span>
+                    </label>
+                </div>
+                <p class="auto-hint" id="auto-hint">
+                    Analiza frecuencia de letras (método Al-Kindi) y detecta automáticamente
+                    el algoritmo y la clave sin que necesites conocerlos.
+                    Si hay alfabeto personalizado activo, los candidatos se generan sobre ese espacio.
+                </p>
+                <select id="accion" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;" tabindex="-1" aria-hidden="true">
+                    <option value="cifrar">Cifrar</option>
+                    <option value="descifrar">Descifrar</option>
+                    <option value="auto">Auto</option>
+                </select>
+            </div>
+
+            <!-- 05 ALFABETO PERSONALIZADO -->
+            <div class="field alpha-section">
+                <p class="field__label">
+                    <span class="prompt">05&gt;</span> VOCABULARIO / ALFABETO PERSONALIZADO
+                </p>
+                <p class="field__hint">
+                    Escribe los caracteres de tu alfabeto en el orden que quieras.
+                    Puede ser de cualquier longitud e incluir letras, números, símbolos
+                    o espacios. Los duplicados se ignoran automáticamente.
+                    <strong>Deja vacío</strong> para usar el cifrado estándar A-Z.
+                </p>
+
+                <!-- Textarea para poder ver/pegar alfabetos largos o con símbolos -->
+                <textarea class="field__input field__textarea" id="alfabeto" rows="2"
+                    placeholder="Ej: abcdefghijklmnopqrstuvwxyz0123456789!@#$%"
+                    autocomplete="off" spellcheck="false"
+                    oninput="validarAlfabeto()"></textarea>
+
+                <p id="alpha-status" class="alpha-status neutral">— Vacío — usando cifrado estándar A-Z</p>
+
+                <!-- Presets rápidos -->
+                <!-- Los valores con caracteres especiales se definen en JS (presetAlphas)
+                     y se llaman por clave para evitar conflictos con comillas en onclick -->
+                <div class="alpha-btns">
+                    <button class="alpha-preset-btn" onclick="setAlpha('estandar')">ESTÁNDAR</button>
+                    <button class="alpha-preset-btn" onclick="setAlpha('invertido')">INVERTIDO</button>
+                    <button class="alpha-preset-btn" onclick="setAlpha('extendido')">EXTENDIDO</button>
+                    <button class="alpha-preset-btn" onclick="setAlpha('alfanum')">ALFANUM+SYM</button>
+                </div>
+
+                <!-- Vista previa posición por posición -->
+                <div class="alpha-preview">
+                    <p class="alpha-preview__label">Vista previa — posición : carácter</p>
+                    <div class="alpha-map" id="alpha-map"></div>
+                </div>
+            </div>
+
+            <!-- BOTÓN -->
+            <button class="exec-btn" onclick="cifrar()">
+                <span aria-hidden="true">&gt;_</span>
+                EJECUTAR PROCESO
+                <span aria-hidden="true">⟶</span>
+            </button>
+
+            <!-- RESULTADO -->
+            <section class="output" aria-live="polite">
+                <div class="output__header">
+                    <span class="prompt">OUT&gt;</span>
+                    RESULTADO DEL PROCESO
+                </div>
+                <p id="resultado" class="output__text">_ _ _ _ _ _ _ _ _ _</p>
+                <p id="metodo-detectado" class="metodo-badge" style="display:none;"></p>
+                <div class="output__footer">
+                    <span class="blink">█</span> AGUARDANDO ENTRADA…
+                </div>
+            </section>
+
+        </div>
+
+        <footer class="terminal__footer" aria-hidden="true">
+            <span>ENC_MODULE: ACTIVE</span>
+            <span>SEC_LEVEL: ALPHA</span>
+            <span>SESSION: ██████</span>
+        </footer>
+
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        /* Toggle sincronizado con select oculto */
+        document.querySelectorAll('input[name="accion-toggle"]').forEach(function(r) {
+            r.addEventListener('change', function() {
+                document.getElementById('accion').value = this.value;
+                document.getElementById('auto-hint').style.display =
+                    this.value === 'auto' ? 'block' : 'none';
+                if (this.value !== 'auto')
+                    document.getElementById('metodo-detectado').style.display = 'none';
+            });
+        });
+
+        /* Diccionario de presets — los valores viven en JS, no en atributos HTML,
+           asi se evitan conflictos con comillas y simbolos especiales en onclick */
+        var presetAlphas = {
+            'estandar':  '',
+            'invertido': 'ZYXWVUTSRQPONMLKJIHGFEDCBA',
+            'extendido': 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,;:!?-\'"@#$%&',
+            'alfanum':   'abcdefghijklmnopqrstuvwxyz0123456789@#$%&*()[]{}!?'
+        };
+
+        function setAlpha(clave) {
+            var val = (presetAlphas[clave] !== undefined) ? presetAlphas[clave] : clave;
+            document.getElementById('alfabeto').value = val;
+            validarAlfabeto();
+        }
+
+        /* Lluvia de caracteres */
+        (function() {
+            var canvas = document.getElementById('matrix-bg');
+            var ctx    = canvas.getContext('2d');
+            var chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&!?*+-='.split('');
+            var fs = 14, cols, drops;
+            function resize() {
+                canvas.width  = window.innerWidth;
+                canvas.height = window.innerHeight;
+                cols  = Math.floor(canvas.width / fs);
+                drops = Array(cols).fill(1);
+            }
+            function draw() {
+                ctx.fillStyle = 'rgba(0,0,0,0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(0,255,65,0.15)';
+                ctx.font = fs + 'px "Share Tech Mono", monospace';
+                for (var i = 0; i < drops.length; i++) {
+                    ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * fs, drops[i] * fs);
+                    if (drops[i] * fs > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                    drops[i]++;
+                }
+            }
+            resize();
+            window.addEventListener('resize', resize);
+            setInterval(draw, 50);
+        })();
+    </script>
+
+</body>
+</html>

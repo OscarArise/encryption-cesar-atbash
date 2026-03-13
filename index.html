@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIPHER_SYS v4.0 // Alfabeto variable</title>
+    <title>CIPHER_SYS v5.1 // Alfabeto variable</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -20,7 +20,7 @@
             </div>
             <div class="terminal__title-bar">
                 <span class="blink" aria-hidden="true">▮</span>
-                CIPHER_SYS v4.0 // CLASSIFIED
+                CIPHER_SYS v5.1 // CLASSIFIED
                 <span class="blink" aria-hidden="true">▮</span>
             </div>
             <div class="terminal__status" aria-hidden="true">● ONLINE</div>
@@ -29,8 +29,9 @@
         <div class="terminal__body">
 
             <div class="boot-log" aria-hidden="true">
-                <p><span class="prompt">SYS&gt;</span> Alfabeto de extensión variable + chars especiales<span class="ok"> [OK]</span></p>
-                <p><span class="prompt">SYS&gt;</span> Motor de detección automática (Al-Kindi)<span class="ok"> [OK]</span></p>
+                <p><span class="prompt">SYS&gt;</span> Soporte Unicode completo (emojis, BMP+)<span class="ok"> [OK]</span></p>
+                <p><span class="prompt">SYS&gt;</span> Motor Al-Kindi v2 — scoring dual + confianza log<span class="ok"> [OK]</span></p>
+                <p><span class="prompt">SYS&gt;</span> Sanitización XSS corregida — texto intacto<span class="ok"> [OK]</span></p>
             </div>
 
             <!-- 01 TEXTO -->
@@ -50,14 +51,15 @@
                         <span class="prompt">02&gt;</span> ALGORITMO
                     </label>
                     <div class="select-wrap">
-                        <select class="field__input field__select" id="cifrado">
+                        <select class="field__input field__select" id="cifrado"
+                                onchange="toggleDesplazamiento()">
                             <option value="cesar">[ CÉSAR ]</option>
                             <option value="atbash">[ ATBASH ]</option>
                         </select>
                         <span class="select-arrow" aria-hidden="true">▼</span>
                     </div>
                 </div>
-                <div class="field">
+                <div class="field" id="campo-desplazamiento">
                     <label class="field__label" for="desplazamiento">
                         <span class="prompt">03&gt;</span> DESPLAZAMIENTO
                     </label>
@@ -86,10 +88,11 @@
                     </label>
                 </div>
                 <p class="auto-hint" id="auto-hint">
-                    Analiza frecuencia de letras (método Al-Kindi) y detecta automáticamente
-                    el algoritmo y la clave sin que necesites conocerlos.
-                    Si hay alfabeto personalizado activo, los candidatos se generan sobre ese espacio.
+                    Analiza frecuencia de letras (método Al-Kindi v2) y detecta automáticamente
+                    el algoritmo y la clave. Funciona con alfabetos estándar y personalizados.
+                    El porcentaje de confianza usa escala logarítmica para mayor precisión.
                 </p>
+                <!-- Select oculto mantenido por compatibilidad, pero getModo() lee los radio buttons directamente -->
                 <select id="accion" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;" tabindex="-1" aria-hidden="true">
                     <option value="cifrar">Cifrar</option>
                     <option value="descifrar">Descifrar</option>
@@ -104,22 +107,17 @@
                 </p>
                 <p class="field__hint">
                     Escribe los caracteres de tu alfabeto en el orden que quieras.
-                    Puede ser de cualquier longitud e incluir letras, números, símbolos
-                    o espacios. Los duplicados se ignoran automáticamente.
-                    <strong>Deja vacío</strong> para usar el cifrado estándar A-Z.
+                    Soporta letras, números, símbolos, espacios y emojis.
+                    Los duplicados se ignoran. <strong>Deja vacío</strong> para usar A-Z + a-z.
                 </p>
 
-                <!-- Textarea para poder ver/pegar alfabetos largos o con símbolos -->
                 <textarea class="field__input field__textarea" id="alfabeto" rows="2"
                     placeholder="Ej: abcdefghijklmnopqrstuvwxyz0123456789!@#$%"
                     autocomplete="off" spellcheck="false"
                     oninput="validarAlfabeto()"></textarea>
 
-                <p id="alpha-status" class="alpha-status neutral">— Vacío — usando cifrado estándar A-Z</p>
+                <p id="alpha-status" class="alpha-status neutral">— Vacío — usando cifrado estándar A-Z + a-z</p>
 
-                <!-- Presets rápidos -->
-                <!-- Los valores con caracteres especiales se definen en JS (presetAlphas)
-                     y se llaman por clave para evitar conflictos con comillas en onclick -->
                 <div class="alpha-btns">
                     <button class="alpha-preset-btn" onclick="setAlpha('estandar')">ESTÁNDAR</button>
                     <button class="alpha-preset-btn" onclick="setAlpha('invertido')">INVERTIDO</button>
@@ -127,7 +125,6 @@
                     <button class="alpha-preset-btn" onclick="setAlpha('alfanum')">ALFANUM+SYM</button>
                 </div>
 
-                <!-- Vista previa posición por posición -->
                 <div class="alpha-preview">
                     <p class="alpha-preview__label">Vista previa — posición : carácter</p>
                     <div class="alpha-map" id="alpha-map"></div>
@@ -166,7 +163,7 @@
 
     <script src="script.js"></script>
     <script>
-        /* Toggle sincronizado con select oculto */
+        /* ── Sincronización radio → select oculto ── */
         document.querySelectorAll('input[name="accion-toggle"]').forEach(function(r) {
             r.addEventListener('change', function() {
                 document.getElementById('accion').value = this.value;
@@ -177,12 +174,19 @@
             });
         });
 
-        /* Diccionario de presets — los valores viven en JS, no en atributos HTML,
-           asi se evitan conflictos con comillas y simbolos especiales en onclick */
+        /* ── Mostrar/ocultar campo desplazamiento según algoritmo ── */
+        function toggleDesplazamiento() {
+            var tipo  = document.getElementById('cifrado').value;
+            var campo = document.getElementById('campo-desplazamiento');
+            campo.style.opacity        = tipo === 'atbash' ? '0.35' : '1';
+            campo.style.pointerEvents  = tipo === 'atbash' ? 'none' : 'auto';
+        }
+
+        /* ── Presets de alfabeto ── */
         var presetAlphas = {
             'estandar':  '',
             'invertido': 'ZYXWVUTSRQPONMLKJIHGFEDCBA',
-            'extendido': 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,;:!?-\'"@#$%&',
+            'extendido': 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,;:!?-\'\"@#$%&',
             'alfanum':   'abcdefghijklmnopqrstuvwxyz0123456789@#$%&*()[]{}!?'
         };
 
@@ -192,7 +196,7 @@
             validarAlfabeto();
         }
 
-        /* Lluvia de caracteres */
+        /* ── Lluvia de caracteres (Matrix rain) ── */
         (function() {
             var canvas = document.getElementById('matrix-bg');
             var ctx    = canvas.getContext('2d');
